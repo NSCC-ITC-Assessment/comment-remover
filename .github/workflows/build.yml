@@ -46,14 +46,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Delete the previous 'latest' release (and its tag) so the tag
-          # re-points to the new grill-my-code HEAD on recreate.
-          gh release delete latest --cleanup-tag --yes 2>/dev/null || true
+          NOTES="Automatically built from the \`grill-my-code\` branch at ${{ github.sha }}."
 
-          # Create a fresh 'latest' release pinned to this commit.
-          gh release create latest \
+          if gh release view latest --repo "${{ github.repository }}" &>/dev/null; then
+            # Release already exists — just refresh the notes and overwrite the asset.
+            gh release edit latest \
+              --repo "${{ github.repository }}" \
+              --notes "$NOTES"
+          else
+            # First run — create the release.
+            gh release create latest \
+              --repo "${{ github.repository }}" \
+              --target grill-my-code \
+              --title "Latest (grill-my-code)" \
+              --notes "$NOTES"
+          fi
+
+          gh release upload latest \
+            release-assets/rmcm#rmcm-linux-x86_64 \
             --repo "${{ github.repository }}" \
-            --target grill-my-code \
-            --title "Latest (grill-my-code)" \
-            --notes "Automatically built from the \`grill-my-code\` branch at ${{ github.sha }}." \
-            release-assets/rmcm#rmcm-linux-x86_64
+            --clobber
