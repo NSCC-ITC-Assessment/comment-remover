@@ -1,3 +1,14 @@
+# Builds the rmcm binary for Linux x86_64 and publishes it as a rolling release
+# tagged 'grill-my-code'. The release asset (rmcm-linux-x86_64) is always
+# overwritten with the latest build, giving downstream consumers (e.g. the
+# NSCC-ITC-Assessment action image Dockerfile) a stable download URL that never
+# changes:
+#
+#   https://github.com/NSCC-ITC-Assessment/comment-remover/releases/download/grill-my-code/rmcm-linux-x86_64
+#
+# Triggers: every push or PR merge into the grill-my-code branch, or manually
+# via the Actions tab (workflow_dispatch).
+
 name: Build and Release
 
 on:
