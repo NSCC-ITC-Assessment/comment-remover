@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - grill-my-code
+  workflow_dispatch:
 
 jobs:
   build-linux:
@@ -42,6 +43,9 @@ jobs:
           name: rmcm-linux-x86_64
           path: release-assets
 
+      - name: Rename binary for release
+        run: mv release-assets/rmcm release-assets/rmcm-linux-x86_64
+
       - name: Publish rolling grill-my-code release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,6 +67,6 @@ jobs:
           fi
 
           gh release upload grill-my-code \
-            release-assets/rmcm#rmcm-linux-x86_64 \
+            release-assets/rmcm-linux-x86_64 \
             --repo "${{ github.repository }}" \
             --clobber
