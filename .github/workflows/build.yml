@@ -42,27 +42,27 @@ jobs:
           name: rmcm-linux-x86_64
           path: release-assets
 
-      - name: Publish rolling latest release
+      - name: Publish rolling grill-my-code release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           NOTES="Automatically built from the \`grill-my-code\` branch at ${{ github.sha }}."
 
-          if gh release view latest --repo "${{ github.repository }}" &>/dev/null; then
+          if gh release view grill-my-code --repo "${{ github.repository }}" &>/dev/null; then
             # Release already exists — just refresh the notes and overwrite the asset.
-            gh release edit latest \
+            gh release edit grill-my-code \
               --repo "${{ github.repository }}" \
               --notes "$NOTES"
           else
             # First run — create the release.
-            gh release create latest \
+            gh release create grill-my-code \
               --repo "${{ github.repository }}" \
               --target grill-my-code \
               --title "Latest (grill-my-code)" \
               --notes "$NOTES"
           fi
 
-          gh release upload latest \
+          gh release upload grill-my-code \
             release-assets/rmcm#rmcm-linux-x86_64 \
             --repo "${{ github.repository }}" \
             --clobber
