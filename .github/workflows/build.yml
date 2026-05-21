@@ -8,81 +8,27 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - arch: x86_64
-            target: x86_64-unknown-linux-gnu
-            gcc_prefix: x86_64-linux-gnu
-            packages: ""
-          - arch: i686
-            target: i686-unknown-linux-gnu
-            gcc_prefix: ""
-            packages: gcc-multilib g++-multilib
-          - arch: aarch64
-            target: aarch64-unknown-linux-gnu
-            gcc_prefix: aarch64-linux-gnu
-            packages: gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          - arch: armv7
-            target: armv7-unknown-linux-gnueabihf
-            gcc_prefix: arm-linux-gnueabihf
-            packages: gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
-
-      - name: Install cross-compilation toolchain
-        if: matrix.packages != ''
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ${{ matrix.packages }}
-
-      - name: Setup cargo config
-        if: matrix.arch != 'x86_64'
-        run: |
-          mkdir -p .cargo
-          if [ "${{ matrix.arch }}" = "i686" ]; then
-            cat > .cargo/config.toml << 'EOF'
-          [target.i686-unknown-linux-gnu]
-          linker = "gcc"
-          rustflags = ["-C", "link-arg=-m32"]
-          EOF
-          else
-            cat > .cargo/config.toml << EOF
-          [target.${{ matrix.target }}]
-          linker = "${{ matrix.gcc_prefix }}-gcc"
-          EOF
-          fi
+          targets: x86_64-unknown-linux-gnu
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }} --all-features
+        run: cargo build --release --target x86_64-unknown-linux-gnu --all-features
         env:
           RUSTFLAGS: -C target-feature=+crt-static -C link-arg=-static -C link-arg=-no-pie
 
       - name: Strip binary
-        run: |
-          if [ "${{ matrix.arch }}" = "x86_64" ] || [ "${{ matrix.arch }}" = "i686" ]; then
-            strip target/${{ matrix.target }}/release/rmcm
-          else
-            ${{ matrix.gcc_prefix }}-strip target/${{ matrix.target }}/release/rmcm
-          fi
-
-      - name: Package
-        run: |
-          mkdir package
-          cp target/${{ matrix.target }}/release/rmcm package/
-          cd package
-          tar -czf ../comment-remover-${{ matrix.target }}.tar.gz *
+        run: strip target/x86_64-unknown-linux-gnu/release/rmcm
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: comment-remover-${{ matrix.target }}
-          path: comment-remover-${{ matrix.target }}.tar.gz
+          name: rmcm-linux-x86_64
+          path: target/x86_64-unknown-linux-gnu/release/rmcm
 
   release:
     needs: [build-linux]
@@ -90,20 +36,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download all artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
-
-      - name: Extract fixed-name Linux binaries
-        run: |
-          # Bare binaries with stable names — used by the Docker action image.
-          tar -xf artifacts/comment-remover-x86_64-unknown-linux-gnu/comment-remover-x86_64-unknown-linux-gnu.tar.gz \
-              -C /tmp rmcm
-          mv /tmp/rmcm rmcm-linux-x86_64
-          tar -xf artifacts/comment-remover-aarch64-unknown-linux-gnu/comment-remover-aarch64-unknown-linux-gnu.tar.gz \
-              -C /tmp rmcm
-          mv /tmp/rmcm rmcm-linux-aarch64
+          name: rmcm-linux-x86_64
+          path: release-assets
 
       - name: Publish rolling latest release
         env:
@@ -118,11 +55,5 @@ jobs:
             --repo "${{ github.repository }}" \
             --target grill-my-code \
             --title "Latest (grill-my-code)" \
-            --notes "Automatically built from the \`grill-my-code\` branch at ${{ github.sha }}."
-
-          # Upload all platform archives.
-          find artifacts -name '*.tar.gz' | \
-            xargs gh release upload latest --clobber
-
-          # Upload the stable-named Linux binaries used by the Docker image.
-          gh release upload latest rmcm-linux-x86_64 rmcm-linux-aarch64 --clobber
+            --notes "Automatically built from the \`grill-my-code\` branch at ${{ github.sha }}." \
+            release-assets/rmcm#rmcm-linux-x86_64
